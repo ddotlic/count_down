@@ -74,9 +74,17 @@ pub mod count_down {
 
     fn _results(ns: &[Int]) -> Vec<Result> {
         split(ns).iter()
-            .flat_map(|(ls, rs)| results(ls).into_iter()
-                .flat_map(move |lx| results(rs).into_iter()
-                    .flat_map(move |ry| combine(&lx, &ry))))
+            .flat_map(|(ls, rs)| {
+                let lr = results(ls);
+                let rr = results(rs);
+                let mut vr:Vec<Result> = Vec::new();
+                for l in &lr {
+                    for r in &rr {
+                        vr.append(&mut combine(&l, &r));
+                    }
+                }
+                return vr;
+            })
             .collect()
     }
 
