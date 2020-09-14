@@ -10,8 +10,8 @@ fn main() {
     // n7 is the number to arrive at
     // example: using 3 4 7 2 15 25 303 should yield
     // 3 * (7 * 15 - 4) as the best result
-    let mut numbers: Vec<i64> = env::args().skip(1)
-        .map(|arg| arg.parse::<i64>().unwrap()).collect();
+    let mut numbers: Vec<count_down::Int> = env::args().skip(1)
+        .map(|arg| arg.parse::<count_down::Int>().unwrap()).collect();
     let goal = numbers.pop().unwrap();
     let results = count_down::solutions(numbers, goal);
     let top = cmp::min(results.len(), 5);
