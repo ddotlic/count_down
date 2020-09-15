@@ -11,7 +11,7 @@ pub mod count_down {
 
     pub fn populate_cache() -> Cache {
         let mut cache: Cache = HashMap::new();
-        const CANDIDATES: [u32; 16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 50, 75, 100];
+        const CANDIDATES: [Int; 16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 50, 75, 100];
         for first in CANDIDATES.iter() {
             for second in CANDIDATES.iter() {
                 for op in [Add, Sub, Mul, Div].iter().filter(|op| valid(op, *first, *second)) {
@@ -62,40 +62,33 @@ pub mod count_down {
     }
 
     fn split<T>(xs: &[T]) -> Vec<(&[T], &[T])> {
-        let xsl = xs.len();
-        match xsl {
-            1 => vec!((&xs[..1], &xs[..1])),
-            2 => vec!((&xs[0..1], &xs[1..2])),
-            _ => (1..xsl).map(|i| xs.split_at(i)).collect()
-        }
+        (1..xs.len()).map(|i| xs.split_at(i)).collect()
     }
 
-    fn sub_bags<T: Clone>(xs: Vec<T>) -> Vec<Vec<T>> {
-        (0..xs.len() + 1)
+    fn sub_bags(xs: Vec<Int>, n: Int) -> Vec<Vec<Int>> {
+        let start = if xs.iter().any(|i| *i == n) { 1 } else { 2 };
+        (start..xs.len() + 1)
             .flat_map(|i| xs.iter().cloned().permutations(i))
             .collect()
     }
 
     type Result = (Expr, Int);
 
-    fn _make (op: &Op, l: &Expr, x: &Int, r: &Expr, y: &Int) -> Result {
+    fn _make(op: &Op, l: &Expr, x: &Int, r: &Expr, y: &Int) -> Result {
         (App(*op, Arc::new(l.clone()), Arc::new(r.clone())),
          apply(op, *x, *y))
     }
 
-    fn key(op: &Op, l: &u32, r: &u32) -> u64 {
+    fn key(op: &Op, l: &Int, r: &Int) -> u64 {
         return ((*op as u64) << 61) | ((*l as u64) << 30) | (*r as u64);
     }
 
-    fn make (op: &Op, l: &Expr, x: &Int, r: &Expr, y: &Int) -> Result {
-
+    fn make(op: &Op, l: &Expr, x: &Int, r: &Expr, y: &Int) -> Result {
         if let Val(lv) = l {
             if let Val(rv) = r {
-                let cached = CACHE.get(&key(op, lv, rv)).unwrap().clone();
-                return cached;
+                return CACHE.get(&key(op, lv, rv)).unwrap().clone();
             }
         }
-
         return _make(op, l, x, r, y);
     }
 
@@ -114,28 +107,26 @@ pub mod count_down {
         }
     }
 
-    // NOTE: creating a Vec seems wasteful, why don't we return
-    // an iterator? Used to be complex, but this SO answer shows
-    // an elegant approach: https://stackoverflow.com/a/58683171/25735
+    fn _combined(split:&(&[u32], &[u32])) -> Vec<Result> {
+            let lr = results(split.0);
+            let rr = results(split.1);
+            let mut vr: Vec<Result> = Vec::new();
+            for l in &lr {
+                for r in &rr {
+                    vr.append(&mut combine(&l, &r));
+                }
+            }
+            return vr;
+    }
 
     fn _results(ns: &[Int]) -> Vec<Result> {
         split(ns).iter()
-            .flat_map(|(ls, rs)| {
-                let lr = results(ls);
-                let rr = results(rs);
-                let mut vr: Vec<Result> = Vec::new();
-                for l in &lr {
-                    for r in &rr {
-                        vr.append(&mut combine(&l, &r));
-                    }
-                }
-                return vr;
-            })
+            .flat_map(_combined)
             .collect()
     }
 
     pub fn solutions(ns: Vec<Int>, n: Int) -> Vec<Expr> {
-        sub_bags(ns).par_iter()
+        sub_bags(ns, n).par_iter()
             .flat_map(|bag|
                 results(&bag).into_iter()
                     .filter(|(_, m)| *m == n)
@@ -145,11 +136,25 @@ pub mod count_down {
             .collect()
     }
 
-    // Utilities for displaying expressions
-    fn get_str(expr: &Expr) -> String {
+    fn priority(op: &Op) -> u8 {
+        match op {
+            Add | Sub => 1,
+            Mul | Div => 2,
+        }
+    }
+
+    static LEFT_P: &str = "(";
+    static RIGHT_P: &str = ")";
+    static EMPTY_S: &str = "";
+
+    fn get_str(expr: &Expr, parent_op: &Op) -> String {
         match &*expr {
             Val(v) => v.to_string(),
-            App(op, l, r) => format!("({} {:?} {})", get_str(&l), op, get_str(&r)),
+            App(op, l, r) => {
+                let use_paren = priority(parent_op) > priority(op);
+                let (start, end) = if use_paren { (LEFT_P, RIGHT_P) } else { (EMPTY_S, EMPTY_S) };
+                return format!("{}{} {:?} {}{}", start, get_str(&l, op), op, get_str(&r, op), end);
+            }
         }
     }
 
@@ -166,7 +171,7 @@ pub mod count_down {
 
     impl fmt::Debug for Expr {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f, "{}", get_str(self))
+            write!(f, "{}", get_str(self, &Sub))
         }
     }
 }

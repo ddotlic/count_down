@@ -1,6 +1,4 @@
 use count_down::count_down;
-use std::cmp;
-use std::env;
 
 fn main() {
     // should be run with n1 n2 n3 n4 n5 n6 n7 where
@@ -10,11 +8,11 @@ fn main() {
     // n7 is the number to arrive at
     // example: using 3 4 7 2 15 25 303 should yield
     // 3 * (7 * 15 - 4) as the best result
-    let mut numbers: Vec<count_down::Int> = env::args().skip(1)
+    let mut numbers: Vec<count_down::Int> = std::env::args().skip(1)
         .map(|arg| arg.parse::<count_down::Int>().unwrap()).collect();
     let goal = numbers.pop().unwrap();
     let results = count_down::solutions(numbers, goal);
-    let top = cmp::min(results.len(), 5);
+    let top = std::cmp::min(results.len(), 5);
     for result in &results[..top] {
         println!("{:?}", result);
     }
