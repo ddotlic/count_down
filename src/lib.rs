@@ -4,18 +4,36 @@ pub mod count_down {
     use std::sync::Arc;
     use rayon::prelude::*;
     use lazy_static::lazy_static;
-    use std::collections::HashMap;
 
     pub type Int = u32;
-    type Cache = HashMap<u64, Result>;
+    type Cache = Vec<Option<Result>>;
+
+    fn num_index(num: &Int) -> usize {
+        let res = match num {
+            1..=10 => num - 1,
+            15 => 10,
+            20 => 11,
+            25 => 12,
+            50 => 13,
+            75 => 14,
+            100 => 15,
+            _ => panic!("Impossible candidate number")
+        };
+        res as usize
+    }
+
+    fn cache_index(op: &Op, l: &Int, r: &Int) -> usize {
+        ((*op as usize) << 8) + (num_index(l) << 4) + num_index(r)
+    }
 
     pub fn populate_cache() -> Cache {
-        let mut cache: Cache = HashMap::new();
+        let mut cache: Cache = vec![None; 1024];
         const CANDIDATES: [Int; 16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 50, 75, 100];
         for first in CANDIDATES.iter() {
             for second in CANDIDATES.iter() {
                 for op in [Add, Sub, Mul, Div].iter().filter(|op| valid(op, *first, *second)) {
-                    cache.insert(key(op, first, second), _make(op, &Val(*first), first, &Val(*second), second));
+                    cache[cache_index(op, first, second)] =
+                        Some(_make(op, &Val(*first), first, &Val(*second), second));
                 }
             }
         }
@@ -23,7 +41,7 @@ pub mod count_down {
     }
 
     lazy_static! {
-    static ref CACHE: Cache = populate_cache();
+    pub static ref CACHE: Cache = populate_cache();
     }
 
     #[derive(Copy, Clone)]
@@ -79,14 +97,10 @@ pub mod count_down {
          apply(op, *x, *y))
     }
 
-    fn key(op: &Op, l: &Int, r: &Int) -> u64 {
-        return ((*op as u64) << 61) | ((*l as u64) << 30) | (*r as u64);
-    }
-
     fn make(op: &Op, l: &Expr, x: &Int, r: &Expr, y: &Int) -> Result {
         if let Val(lv) = l {
             if let Val(rv) = r {
-                return CACHE.get(&key(op, lv, rv)).unwrap().clone();
+                return CACHE[cache_index(op, lv, rv)].as_ref().unwrap().clone();
             }
         }
         return _make(op, l, x, r, y);
@@ -107,16 +121,16 @@ pub mod count_down {
         }
     }
 
-    fn _combined(split:&(&[u32], &[u32])) -> Vec<Result> {
-            let lr = results(split.0);
-            let rr = results(split.1);
-            let mut vr: Vec<Result> = Vec::new();
-            for l in &lr {
-                for r in &rr {
-                    vr.append(&mut combine(&l, &r));
-                }
+    fn _combined(split: &(&[Int], &[Int])) -> Vec<Result> {
+        let lr = results(split.0);
+        let rr = results(split.1);
+        let mut vr: Vec<Result> = Vec::new();
+        for l in &lr {
+            for r in &rr {
+                vr.append(&mut combine(&l, &r));
             }
-            return vr;
+        }
+        return vr;
     }
 
     fn _results(ns: &[Int]) -> Vec<Result> {
@@ -125,13 +139,12 @@ pub mod count_down {
             .collect()
     }
 
-    pub fn solutions(ns: Vec<Int>, n: Int) -> Vec<Expr> {
+    pub fn solutions(ns: Vec<Int>, n: Int) -> Vec<Result> {
         sub_bags(ns, n).par_iter()
             .flat_map(|bag|
                 results(&bag).into_iter()
                     .filter(|(_, m)| *m == n)
-                    .map(|(e, _)| e)
-                    .collect::<Vec<Expr>>()
+                    .collect::<Vec<Result>>()
             )
             .collect()
     }
