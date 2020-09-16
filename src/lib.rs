@@ -160,6 +160,15 @@ pub mod count_down {
     static RIGHT_P: &str = ")";
     static EMPTY_S: &str = "";
 
+    fn get_rpn(expr: &Expr) -> String {
+        match &*expr {
+            Val(v) => v.to_string(),
+            App(op, l, r) => {
+                return format!("{} {} {:?}", get_rpn(&l),get_rpn(&r), op);
+            }
+        }
+    }
+
     fn get_str(expr: &Expr, parent_op: &Op) -> String {
         match &*expr {
             Val(v) => v.to_string(),
@@ -184,7 +193,7 @@ pub mod count_down {
 
     impl fmt::Debug for Expr {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f, "{}", get_str(self, &Sub))
+            write!(f, "{} RPN: {}", get_str(self, &Sub), get_rpn(self))
         }
     }
 }
