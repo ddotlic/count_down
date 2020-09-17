@@ -12,7 +12,6 @@ fn main() {
     let mut numbers: Vec<count_down::Int> = std::env::args().skip(1)
         .map(|arg| arg.parse::<count_down::Int>().unwrap()).collect();
     let goal = numbers.pop().unwrap();
-    let _cache = &count_down::CACHE[0]; // force init
     let time = Instant::now();
     let results = count_down::solutions(numbers, goal);
     let elapsed = time.elapsed().as_millis();

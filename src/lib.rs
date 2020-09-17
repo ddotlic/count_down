@@ -3,46 +3,8 @@ pub mod count_down {
     use std::fmt;
     use std::sync::Arc;
     use rayon::prelude::*;
-    use lazy_static::lazy_static;
 
-    pub type Int = u32;
-    type Cache = Vec<Option<Result>>;
-
-    fn num_index(num: &Int) -> usize {
-        let res = match num {
-            1..=10 => num - 1,
-            15 => 10,
-            20 => 11,
-            25 => 12,
-            50 => 13,
-            75 => 14,
-            100 => 15,
-            _ => panic!("Impossible candidate number")
-        };
-        res as usize
-    }
-
-    fn cache_index(op: &Op, l: &Int, r: &Int) -> usize {
-        ((*op as usize) << 8) + (num_index(l) << 4) + num_index(r)
-    }
-
-    pub fn populate_cache() -> Cache {
-        let mut cache: Cache = vec![None; 1024];
-        const CANDIDATES: [Int; 16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 50, 75, 100];
-        for first in CANDIDATES.iter() {
-            for second in CANDIDATES.iter() {
-                for op in [Add, Sub, Mul, Div].iter().filter(|op| valid(op, *first, *second)) {
-                    cache[cache_index(op, first, second)] =
-                        Some(_make(op, &Val(*first), first, &Val(*second), second));
-                }
-            }
-        }
-        return cache;
-    }
-
-    lazy_static! {
-    pub static ref CACHE: Cache = populate_cache();
-    }
+    pub type Int = i64;
 
     #[derive(Copy, Clone)]
     pub enum Op {
@@ -92,18 +54,9 @@ pub mod count_down {
 
     type Result = (Expr, Int);
 
-    fn _make(op: &Op, l: &Expr, x: &Int, r: &Expr, y: &Int) -> Result {
+    fn make(op: &Op, l: &Expr, x: &Int, r: &Expr, y: &Int) -> Result {
         (App(*op, Arc::new(l.clone()), Arc::new(r.clone())),
          apply(op, *x, *y))
-    }
-
-    fn make(op: &Op, l: &Expr, x: &Int, r: &Expr, y: &Int) -> Result {
-        if let Val(lv) = l {
-            if let Val(rv) = r {
-                return CACHE[cache_index(op, lv, rv)].as_ref().unwrap().clone();
-            }
-        }
-        return _make(op, l, x, r, y);
     }
 
     fn combine((l, x): &Result, (r, y): &Result) -> Vec<Result> {
@@ -121,10 +74,10 @@ pub mod count_down {
         }
     }
 
-    fn _combined(split: &(&[Int], &[Int])) -> Vec<Result> {
+    fn combine_chunks(split: &(&[Int], &[Int])) -> Vec<Result> {
         let lr = results(split.0);
         let rr = results(split.1);
-        let mut vr: Vec<Result> = Vec::new();
+        let mut vr: Vec<Result> = Vec::with_capacity(lr.len() + rr.len());
         for l in &lr {
             for r in &rr {
                 vr.append(&mut combine(&l, &r));
@@ -135,7 +88,7 @@ pub mod count_down {
 
     fn _results(ns: &[Int]) -> Vec<Result> {
         split(ns).iter()
-            .flat_map(_combined)
+            .flat_map(combine_chunks)
             .collect()
     }
 
@@ -159,15 +112,6 @@ pub mod count_down {
     static LEFT_P: &str = "(";
     static RIGHT_P: &str = ")";
     static EMPTY_S: &str = "";
-
-    fn get_rpn(expr: &Expr) -> String {
-        match &*expr {
-            Val(v) => v.to_string(),
-            App(op, l, r) => {
-                return format!("{} {} {:?}", get_rpn(&l),get_rpn(&r), op);
-            }
-        }
-    }
 
     fn get_str(expr: &Expr, parent_op: &Op) -> String {
         match &*expr {
@@ -193,7 +137,7 @@ pub mod count_down {
 
     impl fmt::Debug for Expr {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f, "{} RPN: {}", get_str(self, &Sub), get_rpn(self))
+            write!(f, "{}", get_str(self, &Sub))
         }
     }
 }
