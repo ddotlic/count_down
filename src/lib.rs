@@ -6,7 +6,7 @@ pub mod count_down {
 
     pub type Int = i64;
 
-    #[derive(Copy, Clone)]
+    #[derive(Copy, Clone, PartialEq)]
     pub enum Op {
         Add,
         Sub,
@@ -104,8 +104,9 @@ pub mod count_down {
 
     fn priority(op: &Op) -> u8 {
         match op {
-            Add | Sub => 1,
-            Mul | Div => 2,
+            Add => 1,
+            Sub => 2,
+            Mul | Div => 3,
         }
     }
 
@@ -117,7 +118,7 @@ pub mod count_down {
         match &*expr {
             Val(v) => v.to_string(),
             App(op, l, r) => {
-                let use_paren = priority(parent_op) > priority(op);
+                let use_paren = priority(parent_op) > priority(op) || (*op == *parent_op && *op == Sub);
                 let (start, end) = if use_paren { (LEFT_P, RIGHT_P) } else { (EMPTY_S, EMPTY_S) };
                 return format!("{}{} {:?} {}{}", start, get_str(&l, op), op, get_str(&r, op), end);
             }
@@ -137,7 +138,7 @@ pub mod count_down {
 
     impl fmt::Debug for Expr {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f, "{}", get_str(self, &Sub))
+            write!(f, "{}", get_str(self, &Add))
         }
     }
 }

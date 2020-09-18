@@ -16,9 +16,10 @@ fn main() {
     let results = count_down::solutions(numbers, goal);
     let elapsed = time.elapsed().as_millis();
     let total_results = results.len();
-    let top = std::cmp::min(total_results, 5);
+    const MAX_TOP: usize = 20;
+    let top = std::cmp::min(total_results, MAX_TOP);
     println!("Found {} results in {} ms.", total_results, elapsed);
-    println!("Top 5 results (or less if there aren't as many)");
+    println!("Top {} results (or less if there aren't as many)", MAX_TOP);
     for result in &results[..top] {
         println!("{:?}", result.0);
     }
